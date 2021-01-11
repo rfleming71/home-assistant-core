@@ -1,7 +1,9 @@
 """The Unifi Video integration."""
 import asyncio
+from datetime import timedelta
 import logging
 
+import async_timeout
 import requests
 from uvcclient import nvr
 
@@ -15,6 +17,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import PlatformNotReady
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
 
@@ -38,9 +41,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["camera_id_field"] = (
         "_id" if nvrconn.server_version >= (3, 2, 0) else "uuid"
     )
-    hass.data[DOMAIN]["cameras"] = await hass.async_add_executor_job(
-        _get_cameras, hass.data[DOMAIN]["nvrconn"]
+
+    async def async_update_data():
+        """Fetch data from API endpoint.
+
+        This is the place to pre-process the data to lookup tables
+        so entities can quickly look up their data.
+        """
+        try:
+            # Note: asyncio.TimeoutError and aiohttp.ClientError are already
+            # handled by the data update coordinator.
+            async with async_timeout.timeout(10):
+                return await hass.async_add_executor_job(
+                    _get_cameras,
+                    hass.data[DOMAIN]["nvrconn"],
+                    hass.data[DOMAIN]["camera_id_field"],
+                )
+        except Exception as err:
+            raise UpdateFailed(f"Error communicating with API: {err}")
+
+    coordinator = DataUpdateCoordinator(
+        hass,
+        _LOGGER,
+        # Name of the data. For logging purposes.
+        name="sensor",
+        update_method=async_update_data,
+        # Polling interval. Will only be polled if there are subscribers.
+        update_interval=timedelta(seconds=10),
     )
+
+    hass.data[DOMAIN]["coordinator"] = coordinator
+
+    # Fetch initial data so we have data when entities subscribe
+    await coordinator.async_refresh()
 
     for component in PLATFORMS:
         hass.async_create_task(
@@ -59,7 +92,7 @@ def _get_nvrconn(entry: ConfigEntry) -> nvr:
     )
 
 
-def _get_cameras(nvrconn: nvr):
+def _get_cameras(nvrconn: nvr, id_field: str):
     try:
         cameras = nvrconn._uvc_request("/api/2.0/camera")["data"]
     except nvr.NotAuthorized:
@@ -71,7 +104,11 @@ def _get_cameras(nvrconn: nvr):
     except requests.exceptions.ConnectionError as ex:
         _LOGGER.error("Unable to connect to NVR: %s", str(ex))
         raise PlatformNotReady from ex
-    return [camera for camera in cameras if "airCam" not in camera["model"]]
+    return {
+        camera[id_field]: camera
+        for camera in cameras
+        if "airCam" not in camera["model"]
+    }
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -81,7 +118,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     # details
     unload_ok = all(
         await asyncio.gather(
-            *[
+            [
                 hass.config_entries.async_forward_entry_unload(entry, component)
                 for component in PLATFORMS
             ]

@@ -5,6 +5,7 @@ import re
 from uvcclient import camera as uvc_camera, nvr
 
 from homeassistant.components.camera import SUPPORT_STREAM, Camera
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
@@ -15,30 +16,32 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     """Discover cameras on a Unifi NVR."""
 
     nvrconn = hass.data[DOMAIN]["nvrconn"]
-    cameras = hass.data[DOMAIN]["cameras"]
+    coordinator = hass.data[DOMAIN]["coordinator"]
     identifier = hass.data[DOMAIN]["camera_id_field"]
 
     async_add_devices(
         [
             UnifiVideoCamera(
+                coordinator,
                 nvrconn,
-                camera[identifier],
-                camera["name"],
+                coordinator.data[camera][identifier],
+                coordinator.data[camera]["name"],
                 hass.data[DOMAIN]["camera_password"],
             )
-            for camera in cameras
+            for camera in coordinator.data
         ],
         True,
     )
     return True
 
 
-class UnifiVideoCamera(Camera):
+class UnifiVideoCamera(CoordinatorEntity, Camera):
     """A Ubiquiti Unifi Video Camera."""
 
-    def __init__(self, camera, uuid, name, password):
+    def __init__(self, coordinator, camera, uuid, name, password):
         """Initialize an Unifi camera."""
-        super().__init__()
+        super().__init__(coordinator)
+        Camera.__init__(self)
         self._nvr = camera
         self._uuid = uuid
         self._name = name
@@ -47,17 +50,15 @@ class UnifiVideoCamera(Camera):
         self._connect_addr = None
         self._camera = None
         self._motion_status = False
-        self._caminfo = None
+
+    @property
+    def _caminfo(self):
+        return self.coordinator.data[self._uuid]
 
     @property
     def name(self):
         """Return the name of this camera."""
         return self._name
-
-    @property
-    def should_poll(self):
-        """If this entity should be polled."""
-        return True
 
     @property
     def supported_features(self):
@@ -132,7 +133,6 @@ class UnifiVideoCamera(Camera):
             return None
 
         self._camera = camera
-        self._caminfo = caminfo
         return True
 
     def camera_image(self):
@@ -191,7 +191,3 @@ class UnifiVideoCamera(Camera):
                 return uri
 
         return None
-
-    def update(self):
-        """Update the info."""
-        self._caminfo = self._nvr.get_camera(self._uuid)
