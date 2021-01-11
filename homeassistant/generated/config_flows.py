@@ -219,6 +219,7 @@ FLOWS = [
     "twilio",
     "twinkly",
     "unifi",
+    "unifi_video",
     "upb",
     "upcloud",
     "upnp",

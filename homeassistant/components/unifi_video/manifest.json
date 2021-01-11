@@ -1,0 +1,12 @@
+{
+  "domain": "unifi_video",
+  "name": "Unifi Video",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/unifi_video",
+  "requirements": ["uvcclient==0.11.0"],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": ["@rfleming71"]
+}

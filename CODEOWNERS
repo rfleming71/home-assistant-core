@@ -483,6 +483,7 @@ homeassistant/components/tuya/* @ollo69
 homeassistant/components/twentemilieu/* @frenck
 homeassistant/components/twinkly/* @dr1rrb
 homeassistant/components/unifi/* @Kane610
+homeassistant/components/unifi_video/* @rfleming71
 homeassistant/components/unifiled/* @florisvdk
 homeassistant/components/upb/* @gwww
 homeassistant/components/upc_connect/* @pvizeli @fabaff
