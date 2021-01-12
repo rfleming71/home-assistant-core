@@ -7,3 +7,5 @@ DOMAIN = "unifi_video"
 DEFAULT_PASSWORD = "ubnt"
 DEFAULT_PORT = 7080
 DEFAULT_SSL = False
+
+SERVICE_REBOOT = "reboot_camera"
