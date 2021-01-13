@@ -3,14 +3,54 @@ import logging
 import re
 
 from uvcclient import camera as uvc_camera, nvr
+import voluptuous as vol
 
-from homeassistant.components.camera import SUPPORT_STREAM, Camera
+from homeassistant.components.camera import PLATFORM_SCHEMA, SUPPORT_STREAM, Camera
+from homeassistant.config_entries import SOURCE_IMPORT
+from homeassistant.const import (
+    CONF_API_KEY,
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_SSL,
+)
 from homeassistant.helpers import entity_platform
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SERVICE_REBOOT
+from .const import DEFAULT_PASSWORD, DEFAULT_PORT, DEFAULT_SSL, DOMAIN, SERVICE_REBOOT
 
 _LOGGER = logging.getLogger(__name__)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required("nvr"): cv.string,
+        vol.Required("key"): cv.string,
+        vol.Optional("password", default=DEFAULT_PASSWORD): cv.string,
+        vol.Optional("port", default=DEFAULT_PORT): cv.port,
+        vol.Optional("ssl", default=DEFAULT_SSL): cv.boolean,
+    }
+)
+
+
+async def async_setup_platform(hass, config, add_entities, discovery_info=None):
+    """Set up Unifi Video integration."""
+    _LOGGER.error("Yaml config loading")
+    hass.async_create_task(
+        hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_IMPORT},
+            data={
+                CONF_HOST: config["nvr"],
+                CONF_API_KEY: config["key"],
+                CONF_PASSWORD: config["password"],
+                CONF_PORT: config["port"],
+                CONF_SSL: config["ssl"],
+            },
+        )
+    )
+
+    return True
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
