@@ -1,6 +1,6 @@
 """The tests for UVC camera module."""
-from datetime import datetime
 import asyncio
+from datetime import datetime
 import logging
 import socket
 import unittest
