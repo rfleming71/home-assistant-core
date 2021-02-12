@@ -54,12 +54,8 @@ async def validate_input(hass: core.HomeAssistant, data):
         _LOGGER.error("Failed to connect")
         raise CannotConnect
 
-    title = "Octoprint"
-    if data[CONF_NAME] != DEFAULT_NAME:
-        title += f" {data[CONF_NAME]}"
-
     # Return info that you want to store in the config entry.
-    return {"title": title}
+    return {"title": data[CONF_NAME]}
 
 
 def validate_connection(octoprint_api: OctoPrintAPI):
