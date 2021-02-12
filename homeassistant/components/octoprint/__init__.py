@@ -106,18 +106,17 @@ async def async_setup(hass: HomeAssistant, config: dict):
     if DOMAIN not in config:
         return True
 
-    conf = config[DOMAIN]
+    domain_config = config[DOMAIN]
 
-    for config in conf:
-        protocol = "https" if config[CONF_SSL] else "http"
+    for conf in domain_config:
+        protocol = "https" if conf[CONF_SSL] else "http"
         base_url = (
-            f"{protocol}://{config[CONF_HOST]}:{config[CONF_PORT]}"
-            f"{config[CONF_PATH]}"
+            f"{protocol}://{conf[CONF_HOST]}:{conf[CONF_PORT]}" f"{conf[CONF_PATH]}"
         )
 
         sensors = (
-            config[CONF_SENSORS]["monitored_conditions"]
-            + config[CONF_BINARY_SENSORS]["monitored_conditions"]
+            conf[CONF_SENSORS]["monitored_conditions"]
+            + conf[CONF_BINARY_SENSORS]["monitored_conditions"]
         )
 
         hass.async_create_task(
@@ -125,11 +124,11 @@ async def async_setup(hass: HomeAssistant, config: dict):
                 DOMAIN,
                 context={"source": SOURCE_IMPORT},
                 data={
-                    CONF_API_KEY: config[CONF_API_KEY],
+                    CONF_API_KEY: conf[CONF_API_KEY],
                     CONF_HOST: base_url,
-                    CONF_NAME: config[CONF_NAME],
-                    CONF_NUMBER_OF_TOOLS: config[CONF_NUMBER_OF_TOOLS],
-                    CONF_BED: config[CONF_BED],
+                    CONF_NAME: conf[CONF_NAME],
+                    CONF_NUMBER_OF_TOOLS: conf[CONF_NUMBER_OF_TOOLS],
+                    CONF_BED: conf[CONF_BED],
                     CONF_SENSORS: sensors,
                 },
             )

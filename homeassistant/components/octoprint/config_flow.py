@@ -74,7 +74,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for OctoPrint."""
 
     VERSION = 1
-    # TODO pick one of the available connection classes in homeassistant/config_entries.py
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     async def async_step_user(self, user_input=None):
@@ -102,10 +101,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, user_input):
         """Handle import."""
-        _LOGGER.error("Begin import")
-        _LOGGER.error(user_input[CONF_HOST])
         for entry in self._async_current_entries():
-            _LOGGER.error(f"checking {entry.data.get(CONF_HOST)}")
             if entry.data.get(CONF_HOST) == user_input[CONF_HOST]:
                 return self.async_abort(reason="already_configured")
 
