@@ -4,17 +4,16 @@ import logging
 import unittest
 from unittest import mock
 
-from homeassistant.components.octoprint import binary_sensor as sensor
+from homeassistant.components.octoprint import sensor
 from homeassistant.components.octoprint.const import DOMAIN
-from homeassistant.const import STATE_OFF, STATE_ON
 
 from tests.common import get_test_home_assistant
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class TestOctoprintBinarySensorSetup(unittest.TestCase):
-    """Test the Octoptint binary sensor platform."""
+class TestOctoprintSensorSetup(unittest.TestCase):
+    """Test the Octoptint sensor platform."""
 
     def setUp(self):
         """Set up things to be run when tests are started."""
@@ -42,7 +41,7 @@ class TestOctoprintBinarySensorSetup(unittest.TestCase):
         assert add_entities.call_count == 1
 
 
-class TestOctoprintBinarySensor(unittest.TestCase):
+class TestOctoprintSensor(unittest.TestCase):
     """Test class for Octoptint binary sensor."""
 
     def setup_method(self, method):
@@ -53,14 +52,26 @@ class TestOctoprintBinarySensor(unittest.TestCase):
         self.api = mock.MagicMock()
         self.api.api_url = "http://192.168.1.35/path/api"
         self.addCleanup(self.hass.stop)
-        self.sensor = sensor.OctoPrintBinarySensor(
-            self.api, "condition", "sensor_type", "name", "unit", "job", "group", "tool"
+        self.sensor = sensor.OctoPrintSensor(
+            self.api, "condition", "sensor_type", "name", "unit", "job", "group"
         )
 
     def test_properties(self):
         """Test the properties."""
         assert "name condition" == self.sensor.name
         assert "name condition-http://192.168.1.35/path/api" == self.sensor.unique_id
+        assert not self.sensor.device_class
+
+    def test_properties_with_tool(self):
+        """Test the properties."""
+        self.sensor = sensor.OctoPrintSensor(
+            self.api, "condition", "sensor_type", "name", "unit", "job", "group", "tool"
+        )
+        assert "name condition tool temp" == self.sensor.name
+        assert (
+            "name condition tool temp-http://192.168.1.35/path/api"
+            == self.sensor.unique_id
+        )
         assert not self.sensor.device_class
 
     def test_device_info(self):
@@ -71,10 +82,10 @@ class TestOctoprintBinarySensor(unittest.TestCase):
 
     def test_is_on(self):
         """Test the is_on property."""
-        self.api.update.return_value = True
+        self.api.update.return_value = 36
         self.sensor.update()
-        assert STATE_ON == self.sensor.state
+        assert 36 == self.sensor.state
 
-        self.api.update.return_value = False
+        self.api.update.return_value = 45
         self.sensor.update()
-        assert STATE_OFF == self.sensor.state
+        assert 45 == self.sensor.state

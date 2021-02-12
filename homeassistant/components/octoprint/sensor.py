@@ -138,6 +138,18 @@ class OctoPrintSensor(Entity):
         _LOGGER.debug("Created OctoPrint sensor %r", self)
 
     @property
+    def device_info(self):
+        """Device info."""
+        return {
+            "identifiers": {(COMPONENT_DOMAIN, self.api.api_url)},
+        }
+
+    @property
+    def unique_id(self):
+        """Return a unique id."""
+        return f"{self._name}-{self.api.api_url}"
+
+    @property
     def name(self):
         """Return the name of the sensor."""
         return self._name
