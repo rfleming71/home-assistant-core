@@ -1,7 +1,14 @@
 {
   "domain": "octoprint",
-  "name": "OctoPrint",
+  "name": "Octoprint",
+  "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/octoprint",
-  "after_dependencies": ["discovery"],
-  "codeowners": []
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": [
+    "@rfleming71"
+  ]
 }

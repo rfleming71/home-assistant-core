@@ -3,10 +3,19 @@ import logging
 
 import requests
 
-from homeassistant.const import PERCENTAGE, TEMP_CELSIUS
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_NAME,
+    CONF_SENSORS,
+    PERCENTAGE,
+    TEMP_CELSIUS,
+    TIME_SECONDS,
+)
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 
-from . import DOMAIN as COMPONENT_DOMAIN, SENSOR_TYPES
+from .const import DOMAIN as COMPONENT_DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,18 +23,42 @@ NOTIFICATION_ID = "octoprint_notification"
 NOTIFICATION_TITLE = "OctoPrint sensor setup error"
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the available OctoPrint sensors."""
-    if discovery_info is None:
-        return
+SENSOR_TYPES = {
+    # API Endpoint, Group, Key, unit, icon
+    "Temperatures": ["printer", "temperature", "*", TEMP_CELSIUS],
+    "Current State": ["printer", "state", "text", None, "mdi:printer-3d"],
+    "Job Percentage": [
+        "job",
+        "progress",
+        "completion",
+        PERCENTAGE,
+        "mdi:file-percent",
+    ],
+    "Time Remaining": [
+        "job",
+        "progress",
+        "printTimeLeft",
+        TIME_SECONDS,
+        "mdi:clock-end",
+    ],
+    "Time Elapsed": ["job", "progress", "printTime", TIME_SECONDS, "mdi:clock-start"],
+}
 
-    name = discovery_info["name"]
-    base_url = discovery_info["base_url"]
-    monitored_conditions = discovery_info["sensors"]
-    octoprint_api = hass.data[COMPONENT_DOMAIN][base_url]
+
+async def async_setup_entry(
+    hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
+):
+    """Set up the available OctoPrint binary sensors."""
+    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.data[CONF_HOST]]
     tools = octoprint_api.get_tools()
 
-    if "Temperatures" in monitored_conditions:
+    sensors = [
+        octo_type
+        for octo_type in config_entry.data[CONF_SENSORS]
+        if octo_type in SENSOR_TYPES
+    ]
+
+    if "Temperatures" in sensors:
         if not tools:
             hass.components.persistent_notification.create(
                 "Your printer appears to be offline.<br />"
@@ -40,7 +73,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     devices = []
     types = ["actual", "target"]
-    for octo_type in monitored_conditions:
+    for octo_type in sensors:
         if octo_type == "Temperatures":
             for tool in tools:
                 for temp_type in types:
@@ -48,7 +81,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                         octoprint_api,
                         temp_type,
                         temp_type,
-                        name,
+                        config_entry.data[CONF_NAME],
                         SENSOR_TYPES[octo_type][3],
                         SENSOR_TYPES[octo_type][0],
                         SENSOR_TYPES[octo_type][1],
@@ -60,7 +93,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 octoprint_api,
                 octo_type,
                 SENSOR_TYPES[octo_type][2],
-                name,
+                config_entry.data[CONF_NAME],
                 SENSOR_TYPES[octo_type][3],
                 SENSOR_TYPES[octo_type][0],
                 SENSOR_TYPES[octo_type][1],
@@ -68,7 +101,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 SENSOR_TYPES[octo_type][4],
             )
             devices.append(new_sensor)
-    add_entities(devices, True)
+
+    async_add_devices(devices, True)
+    return True
 
 
 class OctoPrintSensor(Entity):

@@ -4,43 +4,60 @@ import logging
 import requests
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_SENSORS
+from homeassistant.core import HomeAssistant
 
-from . import BINARY_SENSOR_TYPES, DOMAIN as COMPONENT_DOMAIN
+from .const import DOMAIN as COMPONENT_DOMAIN
+from .octoprintapi import OctoPrintAPI
+
+BINARY_SENSOR_TYPES = {
+    # API Endpoint, Group, Key, unit
+    "Printing": ["printer", "state", "printing", None],
+    "Printing Error": ["printer", "state", "error", None],
+}
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_entry(
+    hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
+):
     """Set up the available OctoPrint binary sensors."""
-    if discovery_info is None:
-        return
+    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.data[CONF_HOST]]
 
-    name = discovery_info["name"]
-    base_url = discovery_info["base_url"]
-    monitored_conditions = discovery_info["sensors"]
-    octoprint_api = hass.data[COMPONENT_DOMAIN][base_url]
-
-    devices = []
-    for octo_type in monitored_conditions:
-        new_sensor = OctoPrintBinarySensor(
+    devices = [
+        OctoPrintBinarySensor(
             octoprint_api,
             octo_type,
             BINARY_SENSOR_TYPES[octo_type][2],
-            name,
+            config_entry.data[CONF_NAME],
             BINARY_SENSOR_TYPES[octo_type][3],
             BINARY_SENSOR_TYPES[octo_type][0],
             BINARY_SENSOR_TYPES[octo_type][1],
             "flags",
         )
-        devices.append(new_sensor)
-    add_entities(devices, True)
+        for octo_type in config_entry.data[CONF_SENSORS]
+        if octo_type in BINARY_SENSOR_TYPES
+    ]
+
+    async_add_devices(devices, True)
+    return True
 
 
 class OctoPrintBinarySensor(BinarySensorEntity):
     """Representation an OctoPrint binary sensor."""
 
     def __init__(
-        self, api, condition, sensor_type, sensor_name, unit, endpoint, group, tool=None
+        self,
+        api: OctoPrintAPI,
+        condition,
+        sensor_type,
+        sensor_name,
+        unit,
+        endpoint,
+        group,
+        tool=None,
     ):
         """Initialize a new OctoPrint sensor."""
         self.sensor_name = sensor_name
@@ -56,6 +73,18 @@ class OctoPrintBinarySensor(BinarySensorEntity):
         self.api_group = group
         self.api_tool = tool
         _LOGGER.debug("Created OctoPrint binary sensor %r", self)
+
+    @property
+    def device_info(self):
+        """Device info."""
+        return {
+            "identifiers": {(COMPONENT_DOMAIN, self.api.api_url)},
+        }
+
+    @property
+    def unique_id(self):
+        """Return a unique id."""
+        return f"{self._name}-{self.api.api_url}"
 
     @property
     def name(self):
