@@ -15,10 +15,11 @@
                     "bed": "Printer has a heated bed",
                     "host": "Host",
                     "name": "Server Name",
-                    "number_of_tools": "Number of tools to track",
                     "password": "Password",
-                    "sensors": "Sensors",
-                    "username": "Username"
+                    "path": "Application Path",
+                    "port": "Port Number",
+                    "username": "Username",
+                    "ssl": "Use SSL"
                 }
             }
         }

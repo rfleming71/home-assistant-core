@@ -27,12 +27,12 @@ async def test_form(hass):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
-                "host": "http://1.1.1.1:80/path/",
+                "host": "1.1.1.1",
                 "api_key": "test-key",
                 "name": "Printer",
-                "number_of_tools": 4,
-                "bed": True,
-                "sensors": [],
+                "port": 81,
+                "ssl": True,
+                "path": "/",
             },
         )
         await hass.async_block_till_done()
@@ -40,12 +40,12 @@ async def test_form(hass):
     assert result2["type"] == "create_entry"
     assert result2["title"] == "Printer"
     assert result2["data"] == {
-        "host": "http://1.1.1.1:80/path/",
+        "host": "1.1.1.1",
         "api_key": "test-key",
         "name": "Printer",
-        "number_of_tools": 4,
-        "bed": True,
-        "sensors": [],
+        "port": 81,
+        "ssl": True,
+        "path": "/",
     }
     assert len(mock_setup.mock_calls) == 1
     assert len(mock_setup_entry.mock_calls) == 1
@@ -67,9 +67,6 @@ async def test_form_cannot_connect(hass):
                 "host": "http://1.1.1.1:80/path/",
                 "api_key": "test-key",
                 "name": "Printer",
-                "number_of_tools": 4,
-                "bed": True,
-                "sensors": [],
             },
         )
 

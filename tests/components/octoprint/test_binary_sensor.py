@@ -24,10 +24,11 @@ class TestOctoprintBinarySensorSetup(unittest.TestCase):
 
     def test_setup_config(self):
         """Test component setup."""
-        self.hass.data[DOMAIN] = {"http://192.168.1.35/": self.api}
+        self.hass.data[DOMAIN] = {"foo": self.api}
 
         add_entities = mock.MagicMock()
         config_entry = mock.MagicMock()
+        config_entry.entry_id = "foo"
         config_entry.data = {
             "host": "http://192.168.1.35/",
             "name": "name",

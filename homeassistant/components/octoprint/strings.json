@@ -5,12 +5,12 @@
       "user": {
         "data": {
           "api_key": "OctoPrint API Key",
-          "bed": "Printer has a heated bed",
           "host": "[%key:common::config_flow::data::host%]",
           "name": "Server Name",
-          "number_of_tools": "Number of tools to track",
+          "path": "Application Path",
+          "port": "Port Number",
           "password": "[%key:common::config_flow::data::password%]",
-          "sensors": "Sensors",
+          "ssl": "Use SSL",
           "username": "[%key:common::config_flow::data::username%]"
         }
       }

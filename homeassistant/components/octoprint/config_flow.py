@@ -5,38 +5,31 @@ import requests
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
-from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_NAME, CONF_SENSORS
+from homeassistant.const import (
+    CONF_API_KEY,
+    CONF_HOST,
+    CONF_NAME,
+    CONF_PATH,
+    CONF_PORT,
+    CONF_SSL,
+)
 import homeassistant.helpers.config_validation as cv
 
-from .const import (  # pylint:disable=unused-import
-    CONF_BED,
-    CONF_NUMBER_OF_TOOLS,
-    DOMAIN,
-)
+from .const import DOMAIN  # pylint:disable=unused-import
 from .octoprintapi import OctoPrintAPI
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "OctoPrint"
 
-SENSORS = [
-    "Printing",
-    "Printing Error",
-    "Temperatures",
-    "Current State",
-    "Job Percentage",
-    "Time Remaining",
-    "Time Elapsed",
-]
-
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_API_KEY): cv.string,
         vol.Required(CONF_HOST): cv.string,
+        vol.Optional(CONF_PORT, default=80): cv.port,
+        vol.Optional(CONF_PATH, default="/"): cv.string,
+        vol.Optional(CONF_SSL, default=False): cv.boolean,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
-        vol.Optional(CONF_BED, default=False): cv.boolean,
-        vol.Optional(CONF_SENSORS, default=SENSORS): cv.multi_select(SENSORS),
     }
 )
 
@@ -44,11 +37,13 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: core.HomeAssistant, data):
     """Validate the user input allows us to connect."""
 
+    protocol = "https" if data[CONF_SSL] else "http"
+    base_url = f"{protocol}://{data[CONF_HOST]}:{data[CONF_PORT]}" f"{data[CONF_PATH]}"
     octoprint_api = OctoPrintAPI(
-        data[CONF_HOST] + "/api/",
+        base_url + "/api/",
         data[CONF_API_KEY],
-        data[CONF_BED],
-        data[CONF_NUMBER_OF_TOOLS],
+        False,
+        0,
     )
     if not await hass.async_add_executor_job(validate_connection, octoprint_api):
         _LOGGER.error("Failed to connect")
@@ -61,7 +56,6 @@ async def validate_input(hass: core.HomeAssistant, data):
 def validate_connection(octoprint_api: OctoPrintAPI):
     """Validate the connection to the printer."""
     try:
-        octoprint_api.get("printer")
         octoprint_api.get("job")
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)

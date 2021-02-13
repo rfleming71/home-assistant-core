@@ -37,7 +37,7 @@ class OctoPrintAPI:
         if self.bed:
             tools.append("bed")
         if not self.bed and self.number_of_tools == 0:
-            temps = self.printer_last_reading[0].get("temperature")
+            temps = self.get("printer").get("temperature")
             if temps is not None:
                 tools = temps.keys()
         return tools

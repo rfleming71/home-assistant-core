@@ -5,7 +5,7 @@ import requests
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_SENSORS
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN as COMPONENT_DOMAIN
@@ -24,7 +24,7 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
 ):
     """Set up the available OctoPrint binary sensors."""
-    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.data[CONF_HOST]]
+    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.entry_id]
 
     devices = [
         OctoPrintBinarySensor(
@@ -37,8 +37,7 @@ async def async_setup_entry(
             BINARY_SENSOR_TYPES[octo_type][1],
             "flags",
         )
-        for octo_type in config_entry.data[CONF_SENSORS]
-        if octo_type in BINARY_SENSOR_TYPES
+        for octo_type in BINARY_SENSOR_TYPES
     ]
 
     async_add_devices(devices, True)

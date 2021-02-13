@@ -4,14 +4,7 @@ import logging
 import requests
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_SENSORS,
-    PERCENTAGE,
-    TEMP_CELSIUS,
-    TIME_SECONDS,
-)
+from homeassistant.const import CONF_NAME, PERCENTAGE, TEMP_CELSIUS, TIME_SECONDS
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 
@@ -49,16 +42,10 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
 ):
     """Set up the available OctoPrint binary sensors."""
-    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.data[CONF_HOST]]
+    octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.entry_id]
     tools = octoprint_api.get_tools()
 
-    sensors = [
-        octo_type
-        for octo_type in config_entry.data[CONF_SENSORS]
-        if octo_type in SENSOR_TYPES
-    ]
-
-    if "Temperatures" in sensors:
+    if "Temperatures" in SENSOR_TYPES:
         if not tools:
             hass.components.persistent_notification.create(
                 "Your printer appears to be offline.<br />"
@@ -73,7 +60,7 @@ async def async_setup_entry(
 
     devices = []
     types = ["actual", "target"]
-    for octo_type in sensors:
+    for octo_type in SENSOR_TYPES:
         if octo_type == "Temperatures":
             for tool in tools:
                 for temp_type in types:

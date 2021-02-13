@@ -109,27 +109,17 @@ async def async_setup(hass: HomeAssistant, config: dict):
     domain_config = config[DOMAIN]
 
     for conf in domain_config:
-        protocol = "https" if conf[CONF_SSL] else "http"
-        base_url = (
-            f"{protocol}://{conf[CONF_HOST]}:{conf[CONF_PORT]}" f"{conf[CONF_PATH]}"
-        )
-
-        sensors = (
-            conf[CONF_SENSORS]["monitored_conditions"]
-            + conf[CONF_BINARY_SENSORS]["monitored_conditions"]
-        )
-
         hass.async_create_task(
             hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": SOURCE_IMPORT},
                 data={
                     CONF_API_KEY: conf[CONF_API_KEY],
-                    CONF_HOST: base_url,
+                    CONF_HOST: conf[CONF_HOST],
                     CONF_NAME: conf[CONF_NAME],
-                    CONF_NUMBER_OF_TOOLS: conf[CONF_NUMBER_OF_TOOLS],
-                    CONF_BED: conf[CONF_BED],
-                    CONF_SENSORS: sensors,
+                    CONF_PATH: conf[CONF_PATH],
+                    CONF_PORT: conf[CONF_PORT],
+                    CONF_SSL: conf[CONF_SSL],
                 },
             )
         )
@@ -142,11 +132,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-    hass.data[DOMAIN][entry.data[CONF_HOST]] = OctoPrintAPI(
-        entry.data[CONF_HOST] + "/api/",
-        entry.data[CONF_API_KEY],
-        entry.data[CONF_BED],
-        entry.data[CONF_NUMBER_OF_TOOLS],
+
+    protocol = "https" if entry.data[CONF_SSL] else "http"
+    base_url = (
+        f"{protocol}://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}"
+        f"{entry.data[CONF_PATH]}"
+    )
+
+    hass.data[DOMAIN][entry.entry_id] = OctoPrintAPI(
+        base_url + "/api/", entry.data[CONF_API_KEY], False, 0
     )
 
     for component in PLATFORMS:
