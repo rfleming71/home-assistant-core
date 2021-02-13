@@ -61,7 +61,7 @@ def validate_connection(octoprint_api: OctoPrintAPI):
         _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)
         raise CannotConnect from conn_err
 
-    return octoprint_api.available
+    return octoprint_api.job_available
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
