@@ -83,6 +83,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
+    def __init__(self):
+        """Handle a config flow for OctoPrint."""
+        self.discovery_schema = {}
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         if user_input is None:

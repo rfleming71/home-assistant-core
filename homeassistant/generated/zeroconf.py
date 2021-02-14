@@ -119,7 +119,7 @@ ZEROCONF = {
             "domain": "nut"
         }
     ],
-    "_octoprint._tcp": [
+    "_octoprint._tcp.local.": [
         {
             "domain": "octoprint"
         }
