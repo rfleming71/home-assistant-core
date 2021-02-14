@@ -85,7 +85,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Handle a config flow for OctoPrint."""
-        self.discovery_schema = {}
+        self.discovery_schema = None
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -127,7 +127,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.context["title_placeholders"] = {
             CONF_HOST: discovery_info[CONF_HOST],
         }
-        _LOGGER.error(discovery_info)
 
         self.discovery_schema = _schema_with_defaults(
             discovery_info[CONF_HOST],
