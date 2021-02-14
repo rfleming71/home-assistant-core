@@ -4,7 +4,7 @@ from unittest.mock import patch
 from homeassistant import config_entries, data_entry_flow, setup
 from homeassistant.components.octoprint.config_flow import CannotConnect, ConfigFlow
 from homeassistant.components.octoprint.const import DOMAIN
-from homeassistant.config_entries import SOURCE_ZEROCONF
+from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_ZEROCONF
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 
@@ -99,3 +99,29 @@ async def test_show_zerconf_form(
     assert flow.context["title_placeholders"] == {CONF_HOST: "192.168.1.123"}
     assert result["step_id"] == "user"
     assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
+
+
+async def test_import_yaml(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Test that the zeroconf confirmation form is served."""
+
+    flow = ConfigFlow()
+    flow.hass = hass
+    flow.context = {"source": SOURCE_IMPORT}
+    with patch(
+        "homeassistant.components.octoprint.config_flow.validate_connection",
+        return_value=True,
+    ):
+        result = await flow.async_step_import(
+            {
+                "host": "192.168.1.123",
+                "port": 80,
+                "name": "Octoprint",
+                "path": "/",
+                "api_key": "123dfuchxxkks",
+                "ssl": False,
+            }
+        )
+
+    assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
