@@ -5,7 +5,7 @@
   "documentation": "https://www.home-assistant.io/integrations/octoprint",
   "requirements": [],
   "ssdp": [],
-  "zeroconf": [],
+  "zeroconf": ["_octoprint._tcp"],
   "homekit": {},
   "dependencies": [],
   "codeowners": [

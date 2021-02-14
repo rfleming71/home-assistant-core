@@ -119,6 +119,11 @@ ZEROCONF = {
             "domain": "nut"
         }
     ],
+    "_octoprint._tcp": [
+        {
+            "domain": "octoprint"
+        }
+    ],
     "_plugwise._tcp.local.": [
         {
             "domain": "plugwise"

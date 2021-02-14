@@ -34,6 +34,19 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
+def _schema_with_defaults(host=None, port=80, path="/"):
+    return vol.Schema(
+        {
+            vol.Required(CONF_API_KEY): cv.string,
+            vol.Required(CONF_HOST, default=host): cv.string,
+            vol.Optional(CONF_PORT, default=port): cv.port,
+            vol.Optional(CONF_PATH, default=path): cv.string,
+            vol.Optional(CONF_SSL, default=False): cv.boolean,
+            vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        }
+    )
+
+
 async def validate_input(hass: core.HomeAssistant, data):
     """Validate the user input allows us to connect."""
 
@@ -73,9 +86,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         if user_input is None:
-            return self.async_show_form(
-                step_id="user", data_schema=STEP_USER_DATA_SCHEMA
-            )
+            data = self.discovery_schema or _schema_with_defaults()
+            return self.async_show_form(step_id="user", data_schema=data)
 
         errors = {}
 
@@ -100,6 +112,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="already_configured")
 
         return await self.async_step_user(user_input)
+
+    async def async_step_zeroconf(self, discovery_info):
+        """Handle discovery flow."""
+        host: str = discovery_info[CONF_HOST]
+        await self.async_set_unique_id(host)
+        self._abort_if_unique_id_configured({CONF_HOST: host})
+
+        # pylint: disable=no-member # https://github.com/PyCQA/pylint/issues/3167
+        self.context["title_placeholders"] = {
+            CONF_HOST: discovery_info[CONF_HOST],
+        }
+        self.discovery_schema = _schema_with_defaults(
+            discovery_info[CONF_HOST],
+            discovery_info[CONF_PORT],
+            discovery_info[CONF_PATH],
+        )
+
+        return await self.async_step_user()
 
 
 class CannotConnect(exceptions.HomeAssistantError):
