@@ -119,18 +119,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info):
         """Handle discovery flow."""
-        host: str = discovery_info[CONF_HOST]
-        await self.async_set_unique_id(host)
-        self._abort_if_unique_id_configured({CONF_HOST: host})
+        uuid = discovery_info["properties"]["uuid"]
+        await self.async_set_unique_id(uuid)
+        self._abort_if_unique_id_configured()
 
         # pylint: disable=no-member # https://github.com/PyCQA/pylint/issues/3167
         self.context["title_placeholders"] = {
             CONF_HOST: discovery_info[CONF_HOST],
         }
+        _LOGGER.error(discovery_info)
+
         self.discovery_schema = _schema_with_defaults(
             discovery_info[CONF_HOST],
             discovery_info[CONF_PORT],
-            discovery_info[CONF_PATH],
+            discovery_info["properties"][CONF_PATH],
         )
 
         return await self.async_step_user()
