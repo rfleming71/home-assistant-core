@@ -1,6 +1,7 @@
 """Support for monitoring OctoPrint binary sensors."""
 import logging
 
+from pyoctoprintapi import OctoprintApi
 import requests
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
@@ -9,13 +10,6 @@ from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN as COMPONENT_DOMAIN
-from .octoprintapi import OctoPrintAPI
-
-BINARY_SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit
-    "Printing": ["printer", "state", "printing", None],
-    "Printing Error": ["printer", "state", "error", None],
-}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,63 +21,37 @@ async def async_setup_entry(
     octoprint_api = hass.data[COMPONENT_DOMAIN][config_entry.entry_id]
 
     devices = [
-        OctoPrintBinarySensor(
-            octoprint_api,
-            octo_type,
-            BINARY_SENSOR_TYPES[octo_type][2],
-            config_entry.data[CONF_NAME],
-            BINARY_SENSOR_TYPES[octo_type][3],
-            BINARY_SENSOR_TYPES[octo_type][0],
-            BINARY_SENSOR_TYPES[octo_type][1],
-            "flags",
-        )
-        for octo_type in BINARY_SENSOR_TYPES
+        OctoPrintPrintingBinarySensor(octoprint_api, config_entry.data[CONF_NAME]),
+        OctoPrintPrintingErrorBinarySensor(octoprint_api, config_entry.data[CONF_NAME]),
     ]
 
     async_add_devices(devices, True)
     return True
 
 
-class OctoPrintBinarySensor(BinarySensorEntity):
+class OctoPrintBinarySensorBase(BinarySensorEntity):
     """Representation an OctoPrint binary sensor."""
 
-    def __init__(
-        self,
-        api: OctoPrintAPI,
-        condition,
-        sensor_type,
-        sensor_name,
-        unit,
-        endpoint,
-        group,
-        tool=None,
-    ):
+    def __init__(self, api: OctoprintApi, sensor_name: str, sensor_type: str):
         """Initialize a new OctoPrint sensor."""
         self.sensor_name = sensor_name
-        if tool is None:
-            self._name = f"{sensor_name} {condition}"
-        else:
-            self._name = f"{sensor_name} {condition}"
+        self._name = f"{sensor_name} {sensor_type}"
         self.sensor_type = sensor_type
         self.api = api
         self._state = False
-        self._unit_of_measurement = unit
-        self.api_endpoint = endpoint
-        self.api_group = group
-        self.api_tool = tool
         _LOGGER.debug("Created OctoPrint binary sensor %r", self)
 
     @property
     def device_info(self):
         """Device info."""
         return {
-            "identifiers": {(COMPONENT_DOMAIN, self.api.api_url)},
+            "identifiers": {(COMPONENT_DOMAIN, self.api._base_url)},
         }
 
     @property
     def unique_id(self):
         """Return a unique id."""
-        return f"{self._name}-{self.api.api_url}"
+        return f"{self._name}-{self.api._base_url}"
 
     @property
     def name(self):
@@ -100,12 +68,36 @@ class OctoPrintBinarySensor(BinarySensorEntity):
         """Return the class of this sensor, from DEVICE_CLASSES."""
         return None
 
-    def update(self):
+
+class OctoPrintPrintingBinarySensor(OctoPrintBinarySensorBase):
+    """Representation an OctoPrint binary sensor."""
+
+    def __init__(self, api: OctoprintApi, sensor_name: str):
+        """Initialize a new OctoPrint sensor."""
+        super().__init__(api, sensor_name, "Printing")
+
+    async def async_update(self):
         """Update state of sensor."""
         try:
-            self._state = self.api.update(
-                self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
-            )
+            info = await self.api.get_printer_info()
+            self._state = info["state"]["flags"]["printing"]
+        except requests.exceptions.ConnectionError:
+            # Error calling the api, already logged in api.update()
+            return
+
+
+class OctoPrintPrintingErrorBinarySensor(OctoPrintBinarySensorBase):
+    """Representation an OctoPrint binary sensor."""
+
+    def __init__(self, api: OctoprintApi, sensor_name: str):
+        """Initialize a new OctoPrint sensor."""
+        super().__init__(api, sensor_name, "Printing Error")
+
+    async def async_update(self):
+        """Update state of sensor."""
+        try:
+            info = await self.api.get_printer_info()
+            self._state = info["state"]["flags"]["error"]
         except requests.exceptions.ConnectionError:
             # Error calling the api, already logged in api.update()
             return

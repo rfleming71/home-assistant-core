@@ -2,6 +2,7 @@
 import asyncio
 import logging
 
+from pyoctoprintapi import OctoprintApi
 import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
@@ -17,11 +18,11 @@ from homeassistant.const import (
     CONF_SSL,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import slugify as util_slugify
 
 from .const import CONF_BED, CONF_NUMBER_OF_TOOLS, DOMAIN
-from .octoprintapi import OctoPrintAPI
 
 PLATFORMS = ["binary_sensor", "sensor"]
 
@@ -139,9 +140,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         f"{entry.data[CONF_PATH]}"
     )
 
-    hass.data[DOMAIN][entry.entry_id] = OctoPrintAPI(
-        base_url + "/api/", entry.data[CONF_API_KEY], False, 0
-    )
+    websession = async_get_clientsession(hass)
+    api = OctoprintApi(base_url, websession)
+    api.set_api_key(entry.data[CONF_API_KEY])
+    hass.data[DOMAIN][entry.entry_id] = api
 
     for component in PLATFORMS:
         hass.async_create_task(

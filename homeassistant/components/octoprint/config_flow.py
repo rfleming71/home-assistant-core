@@ -1,6 +1,7 @@
 """Config flow for OctoPrint integration."""
 import logging
 
+from pyoctoprintapi import OctoprintApi
 import requests
 import voluptuous as vol
 
@@ -13,10 +14,10 @@ from homeassistant.const import (
     CONF_PORT,
     CONF_SSL,
 )
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN  # pylint:disable=unused-import
-from .octoprintapi import OctoPrintAPI
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,12 +53,9 @@ async def validate_input(hass: core.HomeAssistant, data):
 
     protocol = "https" if data[CONF_SSL] else "http"
     base_url = f"{protocol}://{data[CONF_HOST]}:{data[CONF_PORT]}" f"{data[CONF_PATH]}"
-    octoprint_api = OctoPrintAPI(
-        base_url + "/api/",
-        data[CONF_API_KEY],
-        False,
-        0,
-    )
+    session = async_get_clientsession(hass)
+    octoprint_api = OctoprintApi(base_url, session)
+    octoprint_api.set_api_key(data[CONF_API_KEY])
     if not await hass.async_add_executor_job(validate_connection, octoprint_api):
         _LOGGER.error("Failed to connect")
         raise CannotConnect
@@ -66,15 +64,16 @@ async def validate_input(hass: core.HomeAssistant, data):
     return {"title": data[CONF_NAME]}
 
 
-def validate_connection(octoprint_api: OctoPrintAPI):
+def validate_connection(octoprint_api: OctoprintApi):
     """Validate the connection to the printer."""
     try:
-        octoprint_api.get("job")
+        octoprint_api.get_server_info()
+        octoprint_api.get_job_info()
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)
         raise CannotConnect from conn_err
 
-    return octoprint_api.job_available
+    return True
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
