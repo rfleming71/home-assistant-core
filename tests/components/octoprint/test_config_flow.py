@@ -19,7 +19,7 @@ async def test_form(hass):
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
+        "pyoctoprintapi.OctoprintClient.get_server_info",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
@@ -64,31 +64,8 @@ async def test_form_cannot_connect(hass):
     )
 
     with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
+        "pyoctoprintapi.OctoprintClient.get_server_info",
         side_effect=CannotConnect,
-    ):
-        result2 = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            {
-                "host": "http://1.1.1.1:80/path/",
-                "api_key": "test-key",
-                "name": "Printer",
-            },
-        )
-
-    assert result2["type"] == "form"
-    assert result2["errors"] == {"base": "cannot_connect"}
-
-
-async def test_form_unavailible(hass):
-    """Test we handle cannot connect error."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-
-    with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
-        return_value=False,
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
@@ -110,7 +87,7 @@ async def test_form_unknown_exception(hass):
     )
 
     with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
+        "pyoctoprintapi.OctoprintClient.get_server_info",
         side_effect=Exception,
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -144,7 +121,7 @@ async def test_show_zerconf_form(hass: HomeAssistant) -> None:
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
+        "pyoctoprintapi.OctoprintClient.get_server_info",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
@@ -172,7 +149,7 @@ async def test_import_yaml(hass: HomeAssistant) -> None:
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
+        "pyoctoprintapi.OctoprintClient.get_server_info",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",

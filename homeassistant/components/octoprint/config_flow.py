@@ -1,7 +1,7 @@
 """Config flow for OctoPrint integration."""
 import logging
 
-from pyoctoprintapi import OctoprintApi
+from pyoctoprintapi import OctoprintClient
 import requests
 import voluptuous as vol
 
@@ -51,12 +51,12 @@ def _schema_with_defaults(host=None, port=80, path="/"):
 async def validate_input(hass: core.HomeAssistant, data):
     """Validate the user input allows us to connect."""
 
-    protocol = "https" if data[CONF_SSL] else "http"
-    base_url = f"{protocol}://{data[CONF_HOST]}:{data[CONF_PORT]}" f"{data[CONF_PATH]}"
     session = async_get_clientsession(hass)
-    octoprint_api = OctoprintApi(base_url, session)
-    octoprint_api.set_api_key(data[CONF_API_KEY])
-    if not await validate_connection(octoprint_api):
+    client = OctoprintClient(
+        data[CONF_HOST], session, data[CONF_PORT], data[CONF_SSL], data[CONF_PATH]
+    )
+    client.set_api_key(data[CONF_API_KEY])
+    if not await validate_connection(client):
         _LOGGER.error("Failed to connect")
         raise CannotConnect
 
@@ -64,11 +64,10 @@ async def validate_input(hass: core.HomeAssistant, data):
     return {"title": data[CONF_NAME]}
 
 
-async def validate_connection(octoprint_api: OctoprintApi):
+async def validate_connection(client: OctoprintClient):
     """Validate the connection to the printer."""
     try:
-        await octoprint_api.get_server_info()
-        await octoprint_api.get_job_info()
+        await client.get_server_info()
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)
         raise CannotConnect from conn_err
