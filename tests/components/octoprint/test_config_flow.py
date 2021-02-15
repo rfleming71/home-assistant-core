@@ -22,6 +22,9 @@ async def test_form(hass):
         "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
         return_value=True,
     ), patch(
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
+        return_value=True,
+    ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
     ) as mock_setup, patch(
         "homeassistant.components.octoprint.async_setup_entry",
@@ -170,6 +173,9 @@ async def test_import_yaml(hass: HomeAssistant) -> None:
 
     with patch(
         "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
+        return_value=True,
+    ), patch(
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
