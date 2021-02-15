@@ -63,7 +63,7 @@ class OctoPrintBinarySensorBase(CoordinatorEntity, BinarySensorEntity):
     @property
     def unique_id(self):
         """Return a unique id."""
-        return f"{self._name}-{self.sensor_name}"
+        return f"{self._name}-{self.device_id}"
 
     @property
     def name(self):
