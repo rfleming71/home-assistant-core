@@ -79,6 +79,52 @@ async def test_form_cannot_connect(hass):
     assert result2["errors"] == {"base": "cannot_connect"}
 
 
+async def test_form_unavailible(hass):
+    """Test we handle cannot connect error."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+
+    with patch(
+        "homeassistant.components.octoprint.config_flow.validate_connection",
+        return_value=False,
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "host": "http://1.1.1.1:80/path/",
+                "api_key": "test-key",
+                "name": "Printer",
+            },
+        )
+
+    assert result2["type"] == "form"
+    assert result2["errors"] == {"base": "cannot_connect"}
+
+
+async def test_form_unknown_exception(hass):
+    """Test we handle a random error."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+
+    with patch(
+        "homeassistant.components.octoprint.config_flow.validate_input",
+        side_effect=Exception,
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "host": "http://1.1.1.1:80/path/",
+                "api_key": "test-key",
+                "name": "Printer",
+            },
+        )
+
+    assert result2["type"] == "form"
+    assert result2["errors"] == {"base": "unknown"}
+
+
 async def test_show_zerconf_form(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ) -> None:
@@ -125,3 +171,34 @@ async def test_import_yaml(
         )
 
     assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+
+
+async def test_duplicate_import_yaml(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Test that the zeroconf confirmation form is served."""
+
+    flow = ConfigFlow()
+    flow.hass = hass
+    flow.context = {"source": SOURCE_IMPORT}
+    current_config = [
+        config_entries.ConfigEntry(
+            1, DOMAIN, "config", {"host": "192.168.1.123"}, "IMPORT", "polling", {}
+        )
+    ]
+    with patch(
+        "homeassistant.config_entries.ConfigFlow._async_current_entries",
+        return_value=current_config,
+    ):
+        result = await flow.async_step_import(
+            {
+                "host": "192.168.1.123",
+                "port": 80,
+                "name": "Octoprint",
+                "path": "/",
+                "api_key": "123dfuchxxkks",
+                "ssl": False,
+            }
+        )
+
+    assert result["type"] == data_entry_flow.RESULT_TYPE_ABORT
