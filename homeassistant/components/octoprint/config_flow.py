@@ -56,7 +56,7 @@ async def validate_input(hass: core.HomeAssistant, data):
     session = async_get_clientsession(hass)
     octoprint_api = OctoprintApi(base_url, session)
     octoprint_api.set_api_key(data[CONF_API_KEY])
-    if not await hass.async_add_executor_job(validate_connection, octoprint_api):
+    if not await validate_connection(octoprint_api):
         _LOGGER.error("Failed to connect")
         raise CannotConnect
 
@@ -64,11 +64,11 @@ async def validate_input(hass: core.HomeAssistant, data):
     return {"title": data[CONF_NAME]}
 
 
-def validate_connection(octoprint_api: OctoprintApi):
+async def validate_connection(octoprint_api: OctoprintApi):
     """Validate the connection to the printer."""
     try:
-        octoprint_api.get_server_info()
-        octoprint_api.get_job_info()
+        await octoprint_api.get_server_info()
+        await octoprint_api.get_job_info()
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)
         raise CannotConnect from conn_err

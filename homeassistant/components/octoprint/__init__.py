@@ -1,7 +1,9 @@
 """The OctoPrint integration."""
 import asyncio
+from datetime import timedelta
 import logging
 
+from async_timeout import timeout
 from pyoctoprintapi import OctoprintApi
 import voluptuous as vol
 
@@ -20,6 +22,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import slugify as util_slugify
 
 from .const import CONF_BED, CONF_NUMBER_OF_TOOLS, DOMAIN
@@ -143,7 +146,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     websession = async_get_clientsession(hass)
     api = OctoprintApi(base_url, websession)
     api.set_api_key(entry.data[CONF_API_KEY])
-    hass.data[DOMAIN][entry.entry_id] = api
+
+    coordinator = OctoprintDataUpdateCoordinator(hass, api, 30)
+
+    await coordinator.async_refresh()
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        "coordinator": coordinator,
+        "api": api,
+        "device_id": base_url,
+    }
 
     for component in PLATFORMS:
         hass.async_create_task(
@@ -167,3 +179,27 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
+
+
+class OctoprintDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching Octoprint data API."""
+
+    def __init__(self, hass: HomeAssistant, api: OctoprintApi, interval: int):
+        """Initialize."""
+        self.octoprint = api
+        update_interval = timedelta(seconds=interval)
+        _LOGGER.debug("Data will be update every %s", update_interval)
+
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=update_interval)
+
+    async def _async_update_data(self):
+        """Update data via library."""
+        try:
+            job = None
+            printer = None
+            async with timeout(10):
+                job = await self.octoprint.get_job_info()
+                printer = await self.octoprint.get_printer_info()
+        except Exception as error:
+            raise UpdateFailed(error) from error
+        return {"job": job, "printer": printer}
