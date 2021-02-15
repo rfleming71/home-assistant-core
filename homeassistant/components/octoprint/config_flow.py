@@ -13,6 +13,7 @@ from homeassistant.const import (
     CONF_PATH,
     CONF_PORT,
     CONF_SSL,
+    CONF_USERNAME,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
@@ -25,7 +26,7 @@ DEFAULT_NAME = "OctoPrint"
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_API_KEY): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=80): cv.port,
         vol.Optional(CONF_PATH, default="/"): cv.string,
@@ -38,13 +39,14 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 def _schema_with_defaults(host=None, port=80, path="/"):
     return vol.Schema(
         {
-            vol.Required(CONF_API_KEY): cv.string,
+            vol.Required(CONF_USERNAME): cv.string,
             vol.Required(CONF_HOST, default=host): cv.string,
             vol.Optional(CONF_PORT, default=port): cv.port,
             vol.Optional(CONF_PATH, default=path): cv.string,
             vol.Optional(CONF_SSL, default=False): cv.boolean,
             vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        }
+        },
+        extra=vol.ALLOW_EXTRA,
     )
 
 
@@ -91,6 +93,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = self.discovery_schema or _schema_with_defaults()
             return self.async_show_form(step_id="user", data_schema=data)
 
+        _LOGGER.error("async_step_user")
+        if CONF_API_KEY not in user_input:
+            # ToDo: Split this is a progress step
+            user_input[CONF_API_KEY] = await self._async_get_api_key(user_input)
+
         errors = {}
 
         try:
@@ -105,6 +112,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+        )
+
+    async def _async_get_api_key(self, user_input):
+        """Validate the user input allows us to connect."""
+
+        session = async_get_clientsession(self.hass)
+        client = OctoprintClient(
+            user_input[CONF_HOST],
+            session,
+            user_input[CONF_PORT],
+            user_input[CONF_SSL],
+            user_input[CONF_PATH],
+        )
+
+        return await client.request_app_key(
+            "Home Assistant", user_input[CONF_USERNAME], 15
         )
 
     async def async_step_import(self, user_input):

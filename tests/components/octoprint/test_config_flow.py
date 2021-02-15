@@ -22,8 +22,8 @@ async def test_form(hass):
         "pyoctoprintapi.OctoprintClient.get_server_info",
         return_value=True,
     ), patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
-        return_value=True,
+        "pyoctoprintapi.OctoprintClient.request_app_key",
+        return_value="api_key_octoprint",
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
     ) as mock_setup, patch(
@@ -34,7 +34,7 @@ async def test_form(hass):
             result["flow_id"],
             {
                 "host": "1.1.1.1",
-                "api_key": "test-key",
+                "username": "user",
                 "name": "Printer",
                 "port": 81,
                 "ssl": True,
@@ -47,7 +47,8 @@ async def test_form(hass):
     assert result2["title"] == "Printer"
     assert result2["data"] == {
         "host": "1.1.1.1",
-        "api_key": "test-key",
+        "username": "user",
+        "api_key": "api_key_octoprint",
         "name": "Printer",
         "port": 81,
         "ssl": True,
@@ -66,12 +67,15 @@ async def test_form_cannot_connect(hass):
     with patch(
         "pyoctoprintapi.OctoprintClient.get_server_info",
         side_effect=CannotConnect,
+    ), patch(
+        "pyoctoprintapi.OctoprintClient.request_app_key",
+        return_value="api_key_octoprint",
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
                 "host": "http://1.1.1.1:80/path/",
-                "api_key": "test-key",
+                "username": "user",
                 "name": "Printer",
             },
         )
@@ -89,12 +93,15 @@ async def test_form_unknown_exception(hass):
     with patch(
         "pyoctoprintapi.OctoprintClient.get_server_info",
         side_effect=Exception,
+    ), patch(
+        "pyoctoprintapi.OctoprintClient.request_app_key",
+        return_value="api_key_octoprint",
     ):
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
                 "host": "http://1.1.1.1:80/path/",
-                "api_key": "test-key",
+                "username": "user",
                 "name": "Printer",
             },
         )
@@ -152,8 +159,8 @@ async def test_import_yaml(hass: HomeAssistant) -> None:
         "pyoctoprintapi.OctoprintClient.get_server_info",
         return_value=True,
     ), patch(
-        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
-        return_value=True,
+        "pyoctoprintapi.OctoprintClient.request_app_key",
+        return_value="api_key_octoprint",
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
     ), patch(
