@@ -2,13 +2,11 @@
 from unittest.mock import patch
 
 from homeassistant import config_entries, data_entry_flow, setup
-from homeassistant.components.octoprint.config_flow import CannotConnect, ConfigFlow
+from homeassistant.components.octoprint.config_flow import CannotConnect
 from homeassistant.components.octoprint.const import DOMAIN
-from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_ZEROCONF
-from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 
-from tests.test_util.aiohttp import AiohttpClientMocker
+from tests.common import MockConfigEntry
 
 
 async def test_form(hass):
@@ -125,80 +123,96 @@ async def test_form_unknown_exception(hass):
     assert result2["errors"] == {"base": "unknown"}
 
 
-async def test_show_zerconf_form(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
+async def test_show_zerconf_form(hass: HomeAssistant) -> None:
     """Test that the zeroconf confirmation form is served."""
 
-    flow = ConfigFlow()
-    flow.hass = hass
-    flow.context = {"source": SOURCE_ZEROCONF}
-    result = await flow.async_step_zeroconf(
-        {
+    await setup.async_setup_component(hass, "persistent_notification", {})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_ZEROCONF},
+        data={
             "host": "192.168.1.123",
             "port": 80,
             "hostname": "example.local.",
             "properties": {"uuid": "83747482", "path": "/foo/"},
-        }
+        },
     )
+    assert result["type"] == "form"
+    assert not result["errors"]
 
-    assert flow.context["title_placeholders"] == {CONF_HOST: "192.168.1.123"}
-    assert result["step_id"] == "user"
-    assert result["type"] == data_entry_flow.RESULT_TYPE_FORM
-
-
-async def test_import_yaml(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
-    """Test that the zeroconf confirmation form is served."""
-
-    flow = ConfigFlow()
-    flow.hass = hass
-    flow.context = {"source": SOURCE_IMPORT}
     with patch(
         "homeassistant.components.octoprint.config_flow.validate_connection",
         return_value=True,
-    ):
-        result = await flow.async_step_import(
-            {
-                "host": "192.168.1.123",
-                "port": 80,
-                "name": "Octoprint",
-                "path": "/",
-                "api_key": "123dfuchxxkks",
-                "ssl": False,
-            }
-        )
+    ), patch(
+        "homeassistant.components.octoprint.async_setup", return_value=True
+    ) as mock_setup, patch(
+        "homeassistant.components.octoprint.async_setup_entry",
+        return_value=True,
+    ) as mock_setup_entry:
+        result2 = await hass.config_entries.flow.async_configure(result["flow_id"])
+        await hass.async_block_till_done()
 
-    assert result["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+    assert result2["step_id"] == "user"
+    assert result2["type"] == data_entry_flow.RESULT_TYPE_FORM
+
+    assert len(mock_setup.mock_calls) == 0
+    assert len(mock_setup_entry.mock_calls) == 0
 
 
-async def test_duplicate_import_yaml(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
-    """Test that the zeroconf confirmation form is served."""
+async def test_import_yaml(hass: HomeAssistant) -> None:
+    """Test that the yaml import works."""
+    await setup.async_setup_component(hass, "persistent_notification", {})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_IMPORT}
+    )
+    assert result["type"] == "form"
+    assert not result["errors"]
 
-    flow = ConfigFlow()
-    flow.hass = hass
-    flow.context = {"source": SOURCE_IMPORT}
-    current_config = [
-        config_entries.ConfigEntry(
-            1, DOMAIN, "config", {"host": "192.168.1.123"}, "IMPORT", "polling", {}
-        )
-    ]
     with patch(
-        "homeassistant.config_entries.ConfigFlow._async_current_entries",
-        return_value=current_config,
+        "homeassistant.components.octoprint.config_flow.validate_connection",
+        return_value=True,
+    ), patch(
+        "homeassistant.components.octoprint.async_setup", return_value=True
+    ), patch(
+        "homeassistant.components.octoprint.async_setup_entry",
+        return_value=True,
     ):
-        result = await flow.async_step_import(
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
             {
-                "host": "192.168.1.123",
-                "port": 80,
-                "name": "Octoprint",
+                "host": "1.1.1.1",
+                "api_key": "test-key",
+                "name": "Printer",
+                "port": 81,
+                "ssl": True,
                 "path": "/",
-                "api_key": "123dfuchxxkks",
-                "ssl": False,
-            }
+            },
         )
+        await hass.async_block_till_done()
 
+    assert result2["type"] == data_entry_flow.RESULT_TYPE_CREATE_ENTRY
+
+
+async def test_duplicate_import_yaml(hass: HomeAssistant) -> None:
+    """Test that the yaml aborts on a reimport."""
+    await setup.async_setup_component(hass, "persistent_notification", {})
+
+    MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "192.168.1.123"},
+        source=config_entries.SOURCE_IMPORT,
+    ).add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IMPORT},
+        data={
+            "host": "192.168.1.123",
+            "port": 80,
+            "name": "Octoprint",
+            "path": "/",
+            "api_key": "123dfuchxxkks",
+            "ssl": False,
+        },
+    )
     assert result["type"] == data_entry_flow.RESULT_TYPE_ABORT
