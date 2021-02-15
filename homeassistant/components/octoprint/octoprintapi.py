@@ -19,7 +19,7 @@ class OctoPrintAPI:
         self.headers = {CONTENT_TYPE: CONTENT_TYPE_JSON, "X-Api-Key": key}
         self.printer_last_reading = [{}, None]
         self.job_last_reading = [{}, None]
-        self.job_available = False
+        self._job_available = False
         self.printer_available = False
         self.printer_error_logged = False
         self.available = False
@@ -41,6 +41,11 @@ class OctoPrintAPI:
             if temps is not None:
                 tools = temps.keys()
         return tools
+
+    @property
+    def job_available(self):
+        """Is the printer job available."""
+        return self._job_available
 
     def get(self, endpoint):
         """Send a get request, and return the response as a dict."""
@@ -64,13 +69,13 @@ class OctoPrintAPI:
             if endpoint == "job":
                 self.job_last_reading[0] = response.json()
                 self.job_last_reading[1] = time.time()
-                self.job_available = True
+                self._job_available = True
             elif endpoint == "printer":
                 self.printer_last_reading[0] = response.json()
                 self.printer_last_reading[1] = time.time()
                 self.printer_available = True
 
-            self.available = self.printer_available and self.job_available
+            self.available = self.printer_available and self._job_available
             if self.available:
                 self.job_error_logged = False
                 self.printer_error_logged = False
@@ -83,7 +88,7 @@ class OctoPrintAPI:
 
             if not self.available_error_logged:
                 _LOGGER.error(log_string)
-                self.job_available = False
+                self._job_available = False
                 self.printer_available = False
                 self.available_error_logged = True
 
@@ -99,7 +104,7 @@ class OctoPrintAPI:
                 if not self.job_error_logged:
                     _LOGGER.error(log_string)
                     self.job_error_logged = True
-                    self.job_available = False
+                    self._job_available = False
             elif endpoint == "printer":
                 if (
                     status_code == 409

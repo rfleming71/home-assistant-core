@@ -19,7 +19,7 @@ async def test_form(hass):
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_connection",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
@@ -61,7 +61,7 @@ async def test_form_cannot_connect(hass):
     )
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_connection",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
         side_effect=CannotConnect,
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -84,7 +84,7 @@ async def test_form_unavailible(hass):
     )
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_connection",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
         return_value=False,
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -107,7 +107,7 @@ async def test_form_unknown_exception(hass):
     )
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_input",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.get",
         side_effect=Exception,
     ):
         result2 = await hass.config_entries.flow.async_configure(
@@ -141,7 +141,7 @@ async def test_show_zerconf_form(hass: HomeAssistant) -> None:
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_connection",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
@@ -169,7 +169,7 @@ async def test_import_yaml(hass: HomeAssistant) -> None:
     assert not result["errors"]
 
     with patch(
-        "homeassistant.components.octoprint.config_flow.validate_connection",
+        "homeassistant.components.octoprint.octoprintapi.OctoPrintAPI.job_available",
         return_value=True,
     ), patch(
         "homeassistant.components.octoprint.async_setup", return_value=True
