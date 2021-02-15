@@ -4,7 +4,7 @@ from datetime import timedelta
 import logging
 
 from async_timeout import timeout
-from pyoctoprintapi import OctoprintApi
+from pyoctoprintapi import OctoprintClient
 import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
@@ -137,24 +137,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
-    protocol = "https" if entry.data[CONF_SSL] else "http"
-    base_url = (
-        f"{protocol}://{entry.data[CONF_HOST]}:{entry.data[CONF_PORT]}"
-        f"{entry.data[CONF_PATH]}"
+    websession = async_get_clientsession(hass)
+    client = OctoprintClient(
+        entry.data[CONF_HOST],
+        websession,
+        entry.data[CONF_PORT],
+        entry.data[CONF_SSL],
+        entry.data[CONF_PATH],
     )
 
-    websession = async_get_clientsession(hass)
-    api = OctoprintApi(base_url, websession)
-    api.set_api_key(entry.data[CONF_API_KEY])
+    client.set_api_key(entry.data[CONF_API_KEY])
 
-    coordinator = OctoprintDataUpdateCoordinator(hass, api, 30)
+    coordinator = OctoprintDataUpdateCoordinator(hass, client, 30)
+    tracking_info = await client.get_tracking_info()
 
     await coordinator.async_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
-        "api": api,
-        "device_id": base_url,
+        "client": client,
+        "device_id": tracking_info.unique_id,
     }
 
     for component in PLATFORMS:
@@ -184,9 +186,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 class OctoprintDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Octoprint data API."""
 
-    def __init__(self, hass: HomeAssistant, api: OctoprintApi, interval: int):
+    def __init__(self, hass: HomeAssistant, client: OctoprintClient, interval: int):
         """Initialize."""
-        self.octoprint = api
+        self.octoprint = client
         update_interval = timedelta(seconds=interval)
         _LOGGER.debug("Data will be update every %s", update_interval)
 

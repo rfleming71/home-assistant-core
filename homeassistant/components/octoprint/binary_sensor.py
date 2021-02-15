@@ -58,7 +58,6 @@ class OctoPrintBinarySensorBase(CoordinatorEntity, BinarySensorEntity):
         """Device info."""
         return {
             "identifiers": {(COMPONENT_DOMAIN, self.device_id)},
-            "name": self.sensor_name,
         }
 
     @property
@@ -89,11 +88,11 @@ class OctoPrintPrintingBinarySensor(OctoPrintBinarySensorBase):
     @property
     def is_on(self):
         """Return true if binary sensor is on."""
-        state = self.coordinator.data["printer"]
-        if not state:
+        printer = self.coordinator.data["printer"]
+        if not printer:
             return None
 
-        return bool(state["state"]["flags"]["printing"])
+        return bool(printer.state.flags.printing)
 
 
 class OctoPrintPrintingErrorBinarySensor(OctoPrintBinarySensorBase):
@@ -108,8 +107,8 @@ class OctoPrintPrintingErrorBinarySensor(OctoPrintBinarySensorBase):
     @property
     def is_on(self):
         """Return true if binary sensor is on."""
-        state = self.coordinator.data["printer"]
-        if not state:
+        printer = self.coordinator.data["printer"]
+        if not printer:
             return None
 
-        return bool(state["state"]["flags"]["error"])
+        return bool(printer.state.flags.error)

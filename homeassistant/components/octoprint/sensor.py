@@ -1,7 +1,7 @@
 """Support for monitoring OctoPrint sensors."""
 import logging
 
-from pyoctoprintapi import OctoprintApi
+from pyoctoprintapi import OctoprintClient
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, PERCENTAGE, TEMP_CELSIUS, TIME_SECONDS
@@ -21,8 +21,8 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_devices
 ):
     """Set up the available OctoPrint binary sensors."""
-    octoprint_api: OctoprintApi = hass.data[COMPONENT_DOMAIN][config_entry.entry_id][
-        "api"
+    client: OctoprintClient = hass.data[COMPONENT_DOMAIN][config_entry.entry_id][
+        "client"
     ]
     coordinator: DataUpdateCoordinator = hass.data[COMPONENT_DOMAIN][
         config_entry.entry_id
@@ -31,13 +31,13 @@ async def async_setup_entry(
     devices = []
     sensor_name = config_entry.data[CONF_NAME]
     try:
-        printer_info = await octoprint_api.get_printer_info()
+        printer_info = await client.get_printer_info()
         types = ["actual", "target"]
-        for tool in printer_info["temperature"]:
+        for tool in printer_info.temperatures:
             for temp_type in types:
                 devices.append(
                     OctoPrintTemperatureSensor(
-                        coordinator, device_id, sensor_name, tool, temp_type
+                        coordinator, device_id, sensor_name, tool.name, temp_type
                     )
                 )
     except BaseException as ex:
@@ -100,11 +100,11 @@ class OctoPrintStatusSensor(OctoPrintSensorBase):
     @property
     def state(self):
         """Return sensor state."""
-        state = self.coordinator.data["printer"]
-        if not state:
+        printer = self.coordinator.data["printer"]
+        if not printer:
             return None
 
-        return state["state"]["text"]
+        return printer.state.text
 
     @property
     def icon(self):
@@ -125,11 +125,15 @@ class OctoPrintJobPercentageSensor(OctoPrintSensorBase):
     @property
     def state(self):
         """Return sensor state."""
-        state = self.coordinator.data["job"]
-        if not state or not state["progress"]["completion"]:
+        job = self.coordinator.data["job"]
+        if not job:
             return 0
 
-        return round(state["progress"]["completion"], 2)
+        state = job.progress.completion
+        if not state:
+            return 0
+
+        return round(state, 2)
 
     @property
     def unit_of_measurement(self):
@@ -155,11 +159,11 @@ class OctoPrintTimeRemainingSensor(OctoPrintSensorBase):
     @property
     def state(self):
         """Return sensor state."""
-        state = self.coordinator.data["job"]
-        if not state:
+        job = self.coordinator.data["job"]
+        if not job:
             return None
 
-        return state["progress"]["printTimeLeft"]
+        return job.progress.print_time_left
 
     @property
     def unit_of_measurement(self):
@@ -185,11 +189,11 @@ class OctoPrintTimeElapsedSensor(OctoPrintSensorBase):
     @property
     def state(self):
         """Return sensor state."""
-        state = self.coordinator.data["job"]
-        if not state:
+        job = self.coordinator.data["job"]
+        if not job:
             return None
 
-        return state["progress"]["printTime"]
+        return job.progress.print_time
 
     @property
     def unit_of_measurement(self):
@@ -230,8 +234,12 @@ class OctoPrintTemperatureSensor(OctoPrintSensorBase):
     @property
     def state(self):
         """Return sensor state."""
-        state = self.coordinator.data["printer"]
-        if not state:
+        printer = self.coordinator.data["printer"]
+        if not printer:
             return None
 
-        return round(state["temperature"][self._api_tool][self._temp_type], 2)
+        for temp in printer.temperatures:
+            if temp.name == self._api_tool:
+                return round(temp._raw[self._temp_type], 2)
+
+        return None
